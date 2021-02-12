@@ -262,6 +262,10 @@ THE SOFTWARE.
                 closeText: '&#10006;',
                 closeStyle: 'float:right;padding-left:5px;',
                 closePrecedes: true,
+                cookieReject: 'cookiebanner-reject',
+                rejectText: '&#10006;',
+                rejectStyle: 'float:right;padding-left:5px;',
+                rejectPrecedes: true,
                 cookiePath: '/',
                 cookieDomain: null,
                 cookieSecure: false,
@@ -362,7 +366,7 @@ THE SOFTWARE.
         },
 
         run: function() {
-            if (!this.agreed()) {
+            if (!this.agreed() && !this.rejected()) {
                 var self = this;
                 contentLoaded(win, function(){
                     self.insert();
@@ -392,8 +396,17 @@ THE SOFTWARE.
             return true;
         },
 
+        reject: function() {
+            this.cookiejar.set(this.options.cookieReject, 1, this.options.expires, this.options.cookiePath, (this.options.cookieDomain !== '' ? this.options.cookieDomain : ''), (this.options.cookieSecure ? true : false));
+            return true;
+        },
+
         agreed: function() {
             return this.cookiejar.has(this.options.cookie);
+        },
+
+        rejected: function() {
+            return this.cookiejar.has(this.options.cookieReject);
         },
 
         close: function() {
@@ -427,6 +440,18 @@ THE SOFTWARE.
         agree_and_close:function() {
             if (!this.options.debug) {
                 this.agree();
+            }
+            if (this.options.delayBeforeClose && !isNaN(parseFloat(this.options.delayBeforeClose)) && isFinite(this.options.delayBeforeClose)) {
+                var self_ = this;
+                setTimeout(function() { self_.close(); }, this.options.delayBeforeClose);
+            } else {
+                return this.close();
+            }
+        },
+
+        reject_and_close:function() {
+            if (!this.options.debug) {
+                this.reject();
             }
             if (this.options.delayBeforeClose && !isNaN(parseFloat(this.options.delayBeforeClose)) && isFinite(this.options.delayBeforeClose)) {
                 var self_ = this;
@@ -485,6 +510,9 @@ THE SOFTWARE.
                 el.style.bottom = 0;
             }
 
+            var rejectHtml = '<div class="cookiebanner-reject" style="' + this.options.rejectStyle + '">' +
+                this.options.rejectText + '</div>';
+
             var closeHtml = '<div class="cookiebanner-close" style="' + this.options.closeStyle + '">' +
                 this.options.closeText + '</div>';
 
@@ -495,9 +523,9 @@ THE SOFTWARE.
             var messageHtml = '<span>' + this.options.message + (this.options.linkmsg ? ' <a' + cssClass + '>' + this.options.linkmsg + '</a>' : '') + '</span>';
 
             if (this.options.closePrecedes) {
-                el.innerHTML = closeHtml + messageHtml;
+                el.innerHTML = rejectHtml + closeHtml + messageHtml;
             } else {
-                el.innerHTML = messageHtml + closeHtml;
+                el.innerHTML = messageHtml + rejectHtml +closeHtml;
             }
 
             this.element = el;
@@ -526,16 +554,38 @@ THE SOFTWARE.
             var el_x = el.getElementsByTagName('div')[0];
             el_x.style.cursor = 'pointer';
 
+            var self = this;
+            on(el_x, 'click', function(){
+                if( this.classList.contains('cookiebanner-close') ) {
+                    self.agree_and_close();
+                } else if( this.classList.contains('cookiebanner-reject') ) {
+                    self.reject_and_close();
+                } else {
+                    self.close();
+                }
+            });
+
+            var el_x = el.getElementsByTagName('div')[1];
+            el_x.style.cursor = 'pointer';
+
+            var self = this;
+            on(el_x, 'click', function(){
+                if( this.classList.contains('cookiebanner-close') ) {
+                    self.agree_and_close();
+                } else if( this.classList.contains('cookiebanner-reject') ) {
+                    self.reject_and_close();
+                } else {
+                    self.close();
+                }
+            });
+
             function on(el, ev, fn) {
                 var add = el.addEventListener ? 'addEventListener' : 'attachEvent',
                     pre = el.addEventListener ? '' : 'on';
                 el[add](pre + ev, fn, false);
             }
 
-            var self = this;
-            on(el_x, 'click', function(){
-                self.agree_and_close();
-            });
+
 
             if (this.element_mask) {
                 on(this.element_mask, 'click', function(){
